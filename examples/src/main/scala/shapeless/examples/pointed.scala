@@ -7,10 +7,11 @@ import ops.hlist.IsHCons
 
 trait Pointed[F[_]] { def point[A](a: A): F[A] }
 
-sealed trait IList[A]
+
+sealed trait IList[+A]
 case class ICons[A](h: A, t: IList[A]) extends IList[A]
-//case object INil extends IList[Nothing]
-case class INil[A]() extends IList[A]
+case object INil extends IList[Nothing]
+// case class INil[A]() extends IList[A]
 
 
 package PointedDemoDefns {
@@ -19,7 +20,6 @@ package PointedDemoDefns {
   sealed trait Tree[T]
   case class Leaf[T](t: T) extends Tree[T]
   case class Node[T](l: Tree[T], r: Tree[T]) extends Tree[T]
-
 }
 
 object PointedDemo extends App {
@@ -49,13 +49,19 @@ object PointedDemo extends App {
   type C5[A] = A :: Const[INil.type]#λ[A] :: HNil
   IsHCons1[C5, Pointed, Pointed]
 
-  // type C6[A] = A :: IList[A] :: HNil
-  // IsHCons1[ICons, Pointed, Pointed]
-  Pointed[IList]
+  type C6[A] = A :: IList[A] :: HNil
+  IsHCons1[C6, Pointed, Pointed]
+
+  Pointed[List]
+
+  Pointed[Foo]
 
   assert(5.point[Option] == Some(5))
-  assert(5.point[Tree] == Leaf(5))
-  assert(5.point[IList] == ICons(5, INil()))
+  assert("toto".point[Tree] == Leaf("toto"))
+  assert(true.point[IList] == ICons(true, INil))
+  assert(1.234.point[List] == List(1.234))
+
+  assert("tata".point[Foo] == Foo("tata", Nil))
 
 }
 
@@ -83,19 +89,19 @@ object Pointed extends Pointed0 with Pointed1{
   // }
 
   // HACKING the fact that CNil can't be pointed
-  implicit def isCPointedSingle[F[_]](
-    implicit pf: Lazy[Pointed[F]]
-  ): Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] =
-    new Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] {
-        def point[A](a: A): F[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
-    }
-
-  // HACKING the fact that CNil can't be pointed
   implicit def isHPointedSingle[C](
     implicit pc: Lazy[Pointed[Const[C]#λ]]
   ): Pointed[({type λ[A] = Const[C]#λ[A] :: HNil })#λ] =
     new Pointed[({type λ[A] = Const[C]#λ[A] :: HNil })#λ] {
         def point[A](a: A): Const[C]#λ[A] :: HNil = pc.value.point(a) :: HNil
+    }
+
+  // HACKING the fact that CNil can't be pointed
+  implicit def isCPointedSingle2[C](
+    implicit pc: Lazy[Pointed[Const[C]#λ]]
+  ): Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] =
+    new Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] {
+        def point[A](a: A): Const[C]#λ[A] :+: CNil = Inl(pc.value.point(a))
     }
 
   implicit def generic[F[_]](implicit gen: Generic1[F, Pointed]): Pointed[F] =
@@ -105,6 +111,14 @@ object Pointed extends Pointed0 with Pointed1{
 }
 
 trait Pointed0 {
+  // HACKING the fact that CNil can't be pointed
+  implicit def isCPointedSingle[F[_]](
+    implicit pf: Lazy[Pointed[F]]
+  ): Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] =
+    new Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] {
+        def point[A](a: A): F[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
+    }
+
 
   implicit def hcons[F[_]](implicit ihc: IsHCons1[F, Pointed, Pointed]): Pointed[F] =
     new Pointed[F] {
