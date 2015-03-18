@@ -26,58 +26,71 @@ object PointedDemo extends App {
   import PointedDemoDefns._
   import pointedSyntax._
 
-  // type L[A] = A :: HNil
-  // Pointed[L]
+  type L[A] = A :: HNil
+  Pointed[L]
 
-  // type C[A] = A :+: CNil
-  // Pointed[C]
+  type C[A] = A :+: CNil
+  Pointed[C]
 
-  // type C2[A] = Id[A] :+: CNil
-  // Pointed[C2]
+  type C2[A] = Id[A] :+: CNil
+  Pointed[C2]
 
-  // type C3[A] = L[A] :+: CNil
-  // Pointed[C3]
+  type C3[A] = L[A] :+: CNil
+  Pointed[C3]
 
-  // Pointed[Option]
+  Pointed[Option]
 
-  // Pointed[Tree]
+  Pointed[Tree]
 
-  // type C4[A] = Const[INil.type]#λ[A] :: HNil
-  // IsHCons1[C4, Pointed, Pointed]
+  type C4[A] = Const[INil.type]#λ[A] :: HNil
+  IsHCons1[C4, Pointed, Pointed]
 
-  // // FAILS FOR UNKNOWN REASON YET
-  // type C5[A] = A :: Const[INil.type]#λ[A] :: HNil
-  // IsHCons1[C5, Pointed, Pointed]
+  // FAILS FOR UNKNOWN REASON YET
+  type C5[A] = A :: Const[INil.type]#λ[A] :: HNil
+  IsHCons1[C5, Pointed, Pointed]
 
-  // type C6[A] = A :: IList[A] :: HNil
-  // IsHCons1[C6, Pointed, Pointed]
+  type C6[A] = A :: IList[A] :: HNil
+  IsHCons1[C6, Pointed, Pointed]
 
-  // Pointed[List]
+  Pointed[Option]
 
-  // Pointed[Foo]
+  Pointed[List]
 
-  // assert(5.point[Option] == Some(5))
-  // assert("toto".point[Tree] == Leaf("toto"))
-  // assert(true.point[IList] == ICons(true, INil))
-  // assert(1.234.point[List] == List(1.234))
+  Pointed[Foo]
 
-  // assert("tata".point[Foo] == Foo("tata", Nil))
+  assert(5.point[Option] == Some(5))
+  assert("toto".point[Tree] == Leaf("toto"))
+  assert(true.point[IList] == ICons(true, INil))
+  assert(1.234.point[List] == List(1.234))
 
-  // Witness[None.type]
-  // Pointed[Const[None.type]#λ]
-  // Pointed[Some]
+  assert("tata".point[Foo] == Foo("tata", Nil))
 
-  type C7[A] = Const[None.type]#λ[A] :: HNil
+  Witness[None.type]
+  Pointed[Const[None.type]#λ]
+  Pointed[Some]
+
+  // type C7[A] = Id[A] :+: Some[A] :+: Const[None.type]#λ[A] :+: CNil
+  // Pointed.hcons[C7]
+  // Pointed.ccons[C7]
+
+  // type C8[A] = Some[A] :: Const[None.type]#λ[A] :: HNil
+  // Pointed.hcons[C8]
+
+  // IsCCons1.mkIsCCons1[C7, Pointed, Pointed]
 
   // type H[T] = None.type
   // lazily[Pointed[H]]
   // lazily[Pointed[Const[None.type]#λ]]
-  IsHCons1.mkIsHCons1[C7, Pointed, Pointed]
+  // IsHCons1.mkIsHCons1[C7, Pointed, Pointed]
+  // Pointed.hcons[C7]
+  // IsHCons1.mkIsHCons1[C7, Pointed, Pointed]
+  // Pointed.isHConsConst[None.type]
+  // Pointed.isCConsConst[Some, None.type]
   // Pointed[Option]
 }
 
 
-object Pointed extends Pointed0 with Pointed1{
+object Pointed extends Pointed0 {
   def apply[F[_]](implicit f: Lazy[Pointed[F]]): Pointed[F] = f.value
 
   implicit val idPointed: Pointed[Id] =
@@ -101,13 +114,14 @@ object Pointed extends Pointed0 with Pointed1{
       def point[A](a: A): Const[C]#λ[A] :+: CNil = Inl(pc.value.point(a))
     }
 
+
   implicit def generic[F[_]](implicit gen: Generic1[F, Pointed]): Pointed[F] =
     new Pointed[F] {
       def point[A](a: A): F[A] = gen.from(gen.fr.point(a))
     }
 }
 
-trait Pointed0 {
+trait Pointed0 extends Pointed1 {
   // HACKING the fact that CNil can't be pointed
   implicit def isCPointedSingleF[F[_]](
     implicit pf: Lazy[Pointed[F]]
@@ -137,7 +151,6 @@ trait Pointed0 {
         ihc.pack(Left(ihc.fh.point(a)))
       }
     }
-
 
 }
 
@@ -184,3 +197,61 @@ object pointedSyntax {
     def point[F[_]](implicit F: Pointed[F]): F[A] = F.point(a)
   }
 }
+
+
+
+
+
+  // implicit def isHConsConst[C](
+  //   implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]], phnil: Lazy[Pointed[Const[HNil]#λ]]
+  // ): IsHCons1[({type λ[A] = Const[C]#λ[A] :: HNil})#λ, Pointed, Pointed] = 
+  //   new IsHCons1[({type λ[A] = Const[C]#λ[A] :: HNil})#λ, Pointed, Pointed] {
+  //     type H[t] = Const[C]#λ[t]
+  //     type T[t] = Const[HNil]#λ[t]
+
+  //     def pack[A](u: (Const[C]#λ[A], Const[HNil]#λ[A])): ({type λ[A] = Const[C]#λ[A] :: HNil })#λ[A] = u._1 :: u._2
+  //     def unpack[A](p: ({type λ[A] = Const[C]#λ[A] :: HNil })#λ[A]): (Const[C]#λ[A], Const[HNil]#λ[A]) = p.head -> p.tail
+
+  //     def mkFhh: Pointed[Const[C]#λ] = pc.value
+  //     def mkFtt: Pointed[Const[HNil]#λ] = phnil.value
+  //   }
+
+  // implicit def isCConsConst[C](
+  //   implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]]
+  // ): IsCCons1[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ, Pointed, Pointed] = 
+  //   new IsCCons1[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ, Pointed, Pointed] {
+  //     type H[t] = Const[C]#λ[t]
+  //     type T[t] = Const[CNil]#λ[t]
+
+  //     def pack[A](u: Either[Const[C]#λ[A], Const[CNil]#λ[A]]): ({type λ[A] = Const[C]#λ[A] :+: CNil })#λ[A] = u match {
+  //       case Left(a) => Coproduct[Const[C]#λ[A] :+: CNil](a)
+  //       case Right(b) => throw new RuntimeException("can't happen")
+  //     }
+  //     def unpack[A](p: ({type λ[A] = Const[C]#λ[A] :+: CNil })#λ[A]): Either[Const[C]#λ[A], CNil] = p match {
+  //       case Inl(a) => Left(a)
+  //       case Inr(c) => throw new RuntimeException("can't happen")
+  //     }
+
+  //     def mkFhh: Pointed[Const[C]#λ] = pc.value
+  //     def mkFtt: Pointed[Const[CNil]#λ] = null
+  //   }
+
+  // implicit def isCConsConst2[F[_], C](
+  //   implicit pf: Lazy[Pointed[F]], w: Witness.Aux[C], pc: Lazy[Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ]]
+  // ): IsCCons1[({type λ[A] = F[A] :+: Const[C]#λ[A] :+: CNil })#λ, Pointed, Pointed] = 
+  //   new IsCCons1[({type λ[A] = F[A] :+: Const[C]#λ[A] :+: CNil })#λ, Pointed, Pointed] {
+  //     type H[t] = F[t]
+  //     type T[t] = ({type λ[A] = Const[C]#λ[A] :+: CNil })#λ[t]
+
+  //     def pack[A](u: Either[F[A], ({type λ[A] = Const[C]#λ[A] :+: CNil })#λ[A]]): ({type λ[A] = F[A] :+: Const[C]#λ[A] :+: CNil })#λ[A] = u match {
+  //       case Left(a) => Coproduct[F[A] :+: Const[C]#λ[A] :+: CNil](a)
+  //       case Right(b) => b.extendLeft[F[A]]
+  //     }
+  //     def unpack[A](p: ({type λ[A] = F[A] :+: Const[C]#λ[A] :+: CNil })#λ[A]): Either[F[A], ({type λ[A] = Const[C]#λ[A] :+: CNil })#λ[A]] = p match {
+  //       case Inl(a) => Left(a)
+  //       case Inr(c) => Right(c)
+  //     }
+
+  //     def mkFhh: Pointed[F] = pf.value
+  //     def mkFtt: Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] = pc.value
+  //   }
