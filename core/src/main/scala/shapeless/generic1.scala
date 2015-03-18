@@ -223,8 +223,11 @@ class IsHCons1Macros(val c: whitebox.Context) extends IsCons1Macros {
   import c.universe._
 
   def mkIsHCons1Impl[L[_], FH[_[_]], FT[_[_]]]
-    (implicit lTag: WeakTypeTag[L[_]], fhTag: WeakTypeTag[FH[Id]], ftTag: WeakTypeTag[FT[Const[HNil]#λ]]): Tree =
-      mkIsCons1(lTag.tpe, fhTag.tpe.typeConstructor, ftTag.tpe.typeConstructor)
+    (implicit lTag: WeakTypeTag[L[_]], fhTag: WeakTypeTag[FH[Id]], ftTag: WeakTypeTag[FT[Const[HNil]#λ]]): Tree = {
+      val t = mkIsCons1(lTag.tpe, fhTag.tpe.typeConstructor, ftTag.tpe.typeConstructor)
+      println("ISHCONS ====> "+t)
+      t
+    }
 
   val isCons1TC: Tree = tq"_root_.shapeless.IsHCons1"
   val consTpe: Type = hconsTpe
@@ -244,8 +247,11 @@ class IsCCons1Macros(val c: whitebox.Context) extends IsCons1Macros {
   import c.universe._
 
   def mkIsCCons1Impl[L[_], FH[_[_]], FT[_[_]]]
-    (implicit lTag: WeakTypeTag[L[_]], fhTag: WeakTypeTag[FH[Id]], ftTag: WeakTypeTag[FT[Const[CNil]#λ]]): Tree =
-      mkIsCons1(lTag.tpe, fhTag.tpe.typeConstructor, ftTag.tpe.typeConstructor)
+    (implicit lTag: WeakTypeTag[L[_]], fhTag: WeakTypeTag[FH[Id]], ftTag: WeakTypeTag[FT[Const[CNil]#λ]]): Tree = {
+      val t = mkIsCons1(lTag.tpe, fhTag.tpe.typeConstructor, ftTag.tpe.typeConstructor)
+      //println(t)
+      t
+    }
 
   val isCons1TC: Tree = tq"_root_.shapeless.IsCCons1"
   val consTpe: Type = cconsTpe
@@ -294,7 +300,9 @@ trait IsCons1Macros extends CaseClassMacros {
 
     val nme = TypeName(c.freshName)
     val lTpt = appliedTypTree1(lPoly, lParamTpe, nme)
+    println("HTTPT")
     val hdTpt = appliedTypTree1(hdPoly, lParamTpe, nme)
+    println("HTTPT "+hdTpt)
     val tlTpt = appliedTypTree1(tlPoly, lParamTpe, nme)
 
     val (pack, unpack) = mkPackUnpack(nme, lTpt, hdTpt, tlTpt)
