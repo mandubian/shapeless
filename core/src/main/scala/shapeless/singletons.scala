@@ -25,7 +25,7 @@ import scala.reflect.macros.{ blackbox, whitebox }
 import tag.@@
 import scala.util.Try
 
-trait Witness {
+trait Witness extends Serializable {
   type T
   val value: T {}
 }
@@ -109,6 +109,16 @@ trait SingletonTypeUtils extends ReprTypes {
       case (q""" $sops.narrow """, _) if sops.tpe <:< singletonOpsTpe =>
         Some(sops.tpe.member(TypeName("T")).typeSignature)
       case _ => None
+    }
+  }
+
+  def narrowValue(t: Tree): (Type, Tree) = {
+    t match {
+      case Literal(k: Constant) =>
+        val tpe = constantType(k)
+        (tpe, q"$t.asInstanceOf[$tpe]")
+      case LiteralSymbol(s) => (SingletonSymbolType(s), mkSingletonSymbol(s))
+      case _ => (t.tpe, t)
     }
   }
 

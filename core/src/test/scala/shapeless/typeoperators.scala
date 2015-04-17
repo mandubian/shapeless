@@ -24,6 +24,7 @@ import org.junit.Assert._
 import newtype._, tag._, test._, testutil._
 
 class TypeOperatorTests {
+  import TypeOperatorTests._
 
   trait ATag
 
@@ -147,7 +148,12 @@ class TypeOperatorTests {
 
   @Test
   def testRejectBogus {
-    assert(Try(the.Foo).isFailure)
+    try {
+      the.Foo
+      assert(false)
+    } catch {
+      case _: Throwable => // OK
+    }
 
     //the.Unit  // illTyped fails for this expression
 
@@ -163,4 +169,16 @@ class TypeOperatorTests {
     val blah = the.`package wibble`
     """)
   }
+
+  @Test
+  def testValueClass {
+    implicit val one: AValueClass = AValueClass(1L)
+
+    val x = the[AValueClass]
+    typed[AValueClass](x)
+  }
+}
+
+object TypeOperatorTests {
+  final case class AValueClass(l: Long) extends AnyVal
 }

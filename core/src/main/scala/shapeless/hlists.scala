@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-13 Miles Sabin 
+ * Copyright (c) 2011-15 Miles Sabin 
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,14 @@ import scala.language.dynamics
 import scala.language.experimental.macros
 
 import scala.annotation.tailrec
+import scala.reflect.macros.whitebox
 
 /**
  * `HList` ADT base trait.
  * 
  * @author Miles Sabin
  */
-sealed trait HList
+sealed trait HList extends Product with Serializable
 
 /**
  * Non-empty `HList` element type.
@@ -99,4 +100,82 @@ object HList extends Dynamic {
    * }}}
    */
   def selectDynamic(tpeSelector: String): Any = macro LabelledMacros.hlistTypeImpl
+}
+
+/**
+ * Trait supporting mapping dynamic argument lists to HList arguments.
+ *
+ * Mixing in this trait enables method applications of the form,
+ *
+ * {{{
+ * lhs.method(23, "foo", true)
+ * }}}
+ *
+ * to be rewritten as,
+ *
+ * {{{
+ * lhs.methodProduct(23 :: "foo" :: true)
+ * }}}
+ *
+ * ie. the arguments are rewritten as HList elements and the application is
+ * rewritten to an application of an implementing method (identified by the
+ * "Product" suffix) which accepts a single HList argument.
+ */
+trait ProductArgs extends Dynamic {
+  def applyDynamic(method: String)(args: Any*): Any = macro ProductMacros.forwardImpl
+}
+
+/**
+ * Trait supporting mapping dynamic argument lists to singleton-typed HList arguments.
+ *
+ * Mixing in this trait enables method applications of the form,
+ *
+ * {{{
+ * lhs.method(23, "foo", true)
+ * }}}
+ *
+ * to be rewritten as,
+ *
+ * {{{
+ * lhs.methodProduct(23.narrow :: "foo".narrow :: true.narrow)
+ * }}}
+ *
+ * ie. the arguments are rewritten as singleton-typed HList elements and the
+ * application is rewritten to an application of an implementing method (identified by the
+ * "Product" suffix) which accepts a single HList argument.
+ */
+trait SingletonProductArgs extends Dynamic {
+  def applyDynamic(method: String)(args: Any*): Any = macro ProductMacros.forwardSingletonImpl
+}
+
+class ProductMacros(val c: whitebox.Context) extends SingletonTypeUtils {
+  import c.universe._
+  import internal.constantType
+
+  def forwardImpl(method: Tree)(args: Tree*): Tree = forward(method, args, false)
+
+  def forwardSingletonImpl(method: Tree)(args: Tree*): Tree = forward(method, args, true)
+
+  def forward(method: Tree, args: Seq[Tree], narrow: Boolean): Tree = {
+    val lhs = c.prefix.tree 
+    val lhsTpe = lhs.tpe
+
+    val q"${methodString: String}" = method
+    val methodName = TermName(methodString+"Product")
+
+    if(lhsTpe.member(methodName) == NoSymbol)
+      c.abort(c.enclosingPosition, s"missing method '$methodName'")
+
+    val argsTree = mkProductImpl(args, narrow)
+
+    q""" $lhs.$methodName($argsTree) """
+  }
+
+  def mkProductImpl(args: Seq[Tree], narrow: Boolean): Tree = {
+    args.foldRight((hnilTpe, q"_root_.shapeless.HNil: $hnilTpe": Tree)) {
+      case(elem, (accTpe, accTree)) =>
+        val (neTpe, neTree) = if(narrow) narrowValue(elem) else (elem.tpe, elem)
+        (appliedType(hconsTpe, List(neTpe, accTpe)), q"""_root_.shapeless.::[$neTpe, $accTpe]($neTree, $accTree)""")
+    }._2
+  }
 }

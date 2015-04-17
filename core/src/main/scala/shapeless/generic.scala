@@ -23,7 +23,7 @@ import scala.reflect.macros.{ blackbox, whitebox }
 
 import ops.{ hlist, coproduct }
 
-trait Generic[T] {
+trait Generic[T] extends Serializable {
   type Repr
   def to(t : T) : Repr
   def from(r : Repr) : T
@@ -73,19 +73,19 @@ object LabelledGeneric {
 
 class nonGeneric extends StaticAnnotation
 
-trait IsTuple[T]
+trait IsTuple[T] extends Serializable
 
 object IsTuple {
   implicit def apply[T]: IsTuple[T] = macro GenericMacros.mkIsTuple[T]
 }
 
-trait HasProductGeneric[T]
+trait HasProductGeneric[T] extends Serializable
 
 object HasProductGeneric {
   implicit def apply[T]: HasProductGeneric[T] = macro GenericMacros.mkHasProductGeneric[T]
 }
 
-trait HasCoproductGeneric[T]
+trait HasCoproductGeneric[T] extends Serializable
 
 object HasCoproductGeneric {
   implicit def apply[T]: HasCoproductGeneric[T] = macro GenericMacros.mkHasCoproductGeneric[T]
@@ -160,6 +160,8 @@ trait CaseClassMacros extends ReprTypes {
     tpe.decls.toList collect {
       case sym: TermSymbol if isCaseAccessorLike(sym) => (sym.name, sym.typeSignatureIn(tpe).finalResultType)
     }
+
+  def productCtorsOf(tpe: Type): List[Symbol] = tpe.decls.toList.filter(_.isConstructor)
 
   def ctorsOf(tpe: Type): List[Type] = ctorsOfAux(tpe, false)
   def ctorsOf1(tpe: Type): List[Type] = ctorsOfAux(tpe, true)
@@ -316,7 +318,9 @@ trait CaseClassMacros extends ReprTypes {
 
   def isCaseClassLike(sym: ClassSymbol): Boolean =
     sym.isCaseClass ||
-    (!sym.isAbstract && !sym.isTrait && sym.knownDirectSubclasses.isEmpty && fieldsOf(sym.typeSignature).nonEmpty)
+    (!sym.isAbstract && !sym.isTrait &&
+     sym.knownDirectSubclasses.isEmpty &&
+     productCtorsOf(sym.typeSignature).size == 1)
 
   def isCaseObjectLike(sym: ClassSymbol): Boolean = sym.isModuleClass && isCaseClassLike(sym)
 
@@ -352,8 +356,12 @@ trait CaseClassMacros extends ReprTypes {
     val global = c.universe.asInstanceOf[scala.tools.nsc.Global]
     val gTpe = tpe.asInstanceOf[global.Type]
     val pre = gTpe.prefix
-    val sym = gTpe.typeSymbol.companionSymbol
-    global.gen.mkAttributedRef(pre, sym).asInstanceOf[Tree]
+    val sym = gTpe.typeSymbol
+    val cSym = sym.companionSymbol
+    if(cSym != NoSymbol)
+      global.gen.mkAttributedRef(pre, cSym).asInstanceOf[Tree]
+    else
+      Ident(tpe.typeSymbol.name.toTermName) // Attempt to refer to local companion
   }
 
   def prefix(tpe: Type): Type = {

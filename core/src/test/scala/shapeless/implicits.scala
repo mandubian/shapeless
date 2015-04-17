@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-15 Miles Sabin
+ * Copyright (c) 2015 Miles Sabin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,24 @@
  */
 
 package shapeless
-package syntax
 
-object zipper {
-  implicit def toZipper[L <: HList](l: L) = new HListZipperOps(l)
-  implicit def toZipper[C, CL <: HList](c : C)(implicit gen : Generic.Aux[C, CL]) = new GenericZipperOps(c)
+import org.junit.Test
+import org.junit.Assert._
+
+trait CachedTC[T]
+object CachedTC {
+  implicit def mkTC[T] = new CachedTC[T] {}
 }
 
-/** Enhances values of any type with a representation via `Generic` with a method supporting conversion to a `Zipper`. */
-class GenericZipperOps[C, CL <: HList](c : C)(implicit gen : Generic.Aux[C, CL]) extends Serializable {
-  def toZipper = Zipper(c)
+object CachedTest {
+  implicit val i: CachedTC[Int] = cachedImplicit
 }
 
-class HListZipperOps[L <: HList](l : L) extends Serializable {
-  def toZipper = Zipper(l)
+class CachedTest {
+  import CachedTest._
+
+  @Test
+  def testBasics {
+    assertTrue(CachedTest.i != null)
+  }
 }

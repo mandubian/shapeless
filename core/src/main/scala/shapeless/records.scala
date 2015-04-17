@@ -75,12 +75,12 @@ object record {
  * to be rewritten as,
  *
  * {{{
- * lhs.methodImpl('x ->> 23 :: 'y ->> "foo", 'z ->> true)
+ * lhs.methodRecord('x ->> 23 :: 'y ->> "foo", 'z ->> true)
  * }}}
  *
  * ie. the named arguments are rewritten as record fields with the argument name
  * encoded as a singleton-typed `Symbol` and the application is rewritten to an
- * application of an implementing method (identified by the "Impl" suffix) which
+ * application of an implementing method (identified by the "Record" suffix) which
  * accepts a single record argument.
  */
 trait RecordArgs extends Dynamic {
@@ -117,17 +117,16 @@ class RecordMacros(val c: whitebox.Context) {
   def forwardImpl(method: Tree)(): Tree = forwardNamedImpl(method)()
 
   def forwardNamedImpl(method: Tree)(rec: Tree*): Tree = {
+    val lhs = c.prefix.tree 
+    val lhsTpe = lhs.tpe
+
     val q"${methodString: String}" = method
     val methodName = TermName(methodString+"Record")
-    val recTree = mkRecordImpl(rec: _*)
-    val app = c.macroApplication
 
-    val lhs = app match {
-      case q"$lhs.applyDynamicNamed($_)(..$_)" => lhs
-      case q"$lhs.applyDynamic($_)()" => lhs
-      case other =>
-        c.abort(c.enclosingPosition, s"bogus prefix '$other'")
-    }
+    if(lhsTpe.member(methodName) == NoSymbol)
+      c.abort(c.enclosingPosition, s"missing method '$methodName'")
+
+    val recTree = mkRecordImpl(rec: _*)
 
     q""" $lhs.$methodName($recTree) """
   }

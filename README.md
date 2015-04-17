@@ -41,7 +41,7 @@ sponsoring such work should [get in touch](mailto:miles@milessabin.com).
 [migration210]: https://github.com/milessabin/shapeless/wiki/Migration-guide:-shapeless-2.0.0-to-2.1.0 
 [milessabin]: https://twitter.com/milessabin
 [syb]: http://research.microsoft.com/en-us/um/people/simonpj/papers/hmap/
-[higherrank]: http://www.cs.rutgers.edu/~ccshan/cs252/usage.pdf
+[higherrank]: http://camlunity.ru/swap/ocaml/Sexy%20Types.pdf
 [typelevel]: http://typelevel.org/
 [scalaz]: https://github.com/scalaz/scalaz
 [spire]: https://github.com/non/spire
@@ -95,13 +95,40 @@ to your settings.
 
 [ci]: https://travis-ci.org/milessabin/shapeless
 
+### shapeless-2.2.0-RC4
+
+Builds are available for Scala 2.11.x and for Scala 2.10.x. The main line of development for
+shapeless 2.2.0 is Scala 2.11.6 with Scala 2.10.x supported via the macro paradise compiler plugin.
+
+```scala
+scalaVersion := "2.11.6"
+
+libraryDependencies ++= Seq(
+  "com.chuusai" %% "shapeless" % "2.2.0-RC4"
+)
+```
+
+If you are using Scala 2.10.x, note that unlike earlier versions, it is no longer necessary to provide an explicit
+Scala version suffix for your shapeless dependency. You must however ensure that you are using Scala version 2.10.2
+or greater, with Scala 2.10.5 (or switching to 2.11.x) strongly recommended. You should also add the macro paradise
+plugin to your build,
+
+```scala
+scalaVersion := "2.10.5"
+
+libraryDependencies ++= Seq(
+  "com.chuusai" %% "shapeless" % "2.2.0-RC4",
+  compilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full)
+)
+```
+
 ### shapeless-2.1.0
 
 Builds are available for Scala 2.11.x and for Scala 2.10.4. The main line of development for
-shapeless 2.1.0 is Scala 2.11.5 with Scala 2.10.x supported via the macro paradise compiler plugin.
+shapeless 2.1.0 is Scala 2.11.6 with Scala 2.10.x supported via the macro paradise compiler plugin.
 
 ```scala
-scalaVersion := "2.11.5"
+scalaVersion := "2.11.6"
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.1.0"
@@ -126,7 +153,7 @@ Builds are available for Scala 2.11.x and for Scala 2.10.4.
 
 ```scala
 // For Scala 2.11.x
-scalaVersion := "2.11.5"
+scalaVersion := "2.11.6"
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.0.0"
@@ -232,14 +259,15 @@ incOptions := incOptions.value.withNameHashing(false)
 
 to your settings.
 
-The master branch of shapeless is built with Scala 2.11.5 by default. To build with Scala 2.10.x you should check out
-the scala-2.10.x branch. As a general rule all new features and bugfixes are made against master and Scala 2.11.5 and
+The master branch of shapeless is built with Scala 2.11.6 by default. To build with Scala 2.10.x you should check out
+the scala-2.10.x branch. As a general rule all new features and bugfixes are made against master and Scala 2.11.6 and
 merged into the scala-2.10.x branch with only the minimal changes needed for forwards compatibility.
 
 [namehashing]: https://github.com/sbt/sbt/issues/1640
 
 ## Contributors
 
++ Alexander Konovalov <alex.knvl@gmail.com> [@alexknvl](https://twitter.com/alexknvl)
 + Alexandre Archambault <alexandre.archambault@gmail.com> [@alxarchambault](https://twitter.com/alxarchambault)
 + Alois Cochard <alois.cochard@gmail.com> [@aloiscochard](https://twitter.com/aloiscochard)
 + Andrew Brett <github@bretts.org> [@Ephemerix](https://twitter.com/Ephemerix)

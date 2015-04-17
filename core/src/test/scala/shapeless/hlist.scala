@@ -26,8 +26,10 @@ class HListTests {
   import nat._
   import poly._
   import syntax.std.traversable._
+  import syntax.singleton._
   import syntax.typeable._
   import ops.hlist._
+  import ops.record._
 
   type SI = Set[Int] :: HNil
   type OI = Option[Int] :: HNil
@@ -773,7 +775,7 @@ class HListTests {
     val empty = HNil.to[Array]
     typed[Array[Nothing]](empty)
     assertArrayEquals2(Array[Nothing](), empty)
-    
+
     implicitly[ToTraversable.Aux[HNil, Array, Nothing]]
     implicitly[ToTraversable.Aux[HNil, Array, Int]]
 
@@ -853,7 +855,7 @@ class HListTests {
     val empty = HNil.toArray
     typed[Array[Nothing]](empty)
     assertArrayEquals2(Array[Nothing](), empty)
-    
+
     implicitly[ToArray[HNil, Nothing]]
     implicitly[ToArray[HNil, Int]]
 
@@ -1935,7 +1937,7 @@ class HListTests {
     // key/value lengths must match up
     illTyped("orig.tail.values.zipWithKeys(orig.keys)")
     illTyped("orig.values.zipWithKeys(orig.keys.tail)")
-    
+
     // Explicit type argument
     {
       val result = orig.values.zipWithKeys[HList.`"intField", "boolField"`.T]
@@ -2597,5 +2599,136 @@ class HListTests {
     // Mix of standard and literal types
 
     typed[HList.`2, String, true`.T](2.narrow :: "a" :: true.narrow :: HNil)
+  }
+
+  object Foo extends ProductArgs {
+    def applyProduct[L <: HList](args: L): L = args
+  }
+
+  @Test
+  def testProductArgs {
+    val l = Foo(23, "foo", true)
+    typed[Int :: String :: Boolean :: HNil](l)
+
+    val v1 = l.head
+    typed[Int](v1)
+    assertEquals(23, v1)
+
+    val v2 = l.tail.head
+    typed[String](v2)
+    assertEquals("foo", v2)
+
+    val v3 = l.tail.tail.head
+    typed[Boolean](v3)
+    assertEquals(true, v3)
+
+    val v4 = l.tail.tail.tail
+    typed[HNil](v4)
+
+    illTyped("""
+      r.tail.tail.tail.head
+    """)
+  }
+
+  object SFoo extends SingletonProductArgs {
+    def applyProduct[L <: HList](args: L): L = args
+  }
+
+  case class Quux(i: Int, s: String, b: Boolean)
+
+  object selectAll extends SingletonProductArgs {
+    class Apply[K <: HList] {
+      def from[T, R <: HList, S <: HList, Out](t: T)
+        (implicit
+          gen: LabelledGeneric.Aux[T, R],
+          sel: SelectAll.Aux[R, K, S],
+          tp: Tupler.Aux[S, Out]
+        ): Out =
+        tp(sel(gen.to(t)))
+    }
+
+    def applyProduct[K <: HList](keys: K) = new Apply[K]
+  }
+
+  trait NonSingletonHNilTC[T]
+  object NonSingletonHNilTC {
+    def apply[T](t: T)(implicit i: NonSingletonHNilTC[T]): NonSingletonHNilTC[T] = i
+
+    implicit val nsHNilTC: NonSingletonHNilTC[HNil] = new NonSingletonHNilTC[HNil] {}
+  }
+
+  @Test
+  def testSingletonProductArgs {
+    object Obj
+
+    val l = SFoo(23, "foo", 'bar, Obj, true)
+    typed[Witness.`23`.T :: Witness.`"foo"`.T :: Witness.`'bar`.T :: Obj.type :: Witness.`true`.T :: HNil](l)
+
+    // Annotations on the LHS here and subsequently, otherwise scalac will
+    // widen the RHS to a non-singleton type.
+    val v1: Witness.`23`.T = l.head
+    assertEquals(23, v1)
+
+    val v2: Witness.`"foo"`.T = l.tail.head
+    assertEquals("foo", v2)
+
+    val v3: Witness.`'bar`.T = l.tail.tail.head
+    assertEquals('bar, v3)
+
+    val v4: Obj.type = l.tail.tail.tail.head
+    assertEquals(Obj, v4)
+
+    val v5: Witness.`true`.T = l.tail.tail.tail.tail.head
+    assertEquals(true, v5)
+
+    val v6 = l.tail.tail.tail.tail.tail
+    typed[HNil](v6)
+
+    illTyped("""
+      r.tail.tail.tail.tail.tail.tail.head
+    """)
+
+    // Verify that we infer HNil rather than HNil.type at the end
+    NonSingletonHNilTC(SFoo(23).tail)
+    NonSingletonHNilTC(SFoo())
+
+    val quux = Quux(23, "foo", true)
+    val ib = selectAll('i, 'b).from(quux)
+    typed[(Int, Boolean)](ib)
+    assertEquals((23, true), ib)
+  }
+
+  implicit class Interpolator(val sc: StringContext) {
+    class Args extends ProductArgs {
+      def applyProduct[L <: HList](l: L): L = l
+    }
+
+    val hlist: Args = new Args
+  }
+
+  @Test
+  def testStringInterpolator {
+    val (i, s, b) = (23, "foo", true)
+    val l = hlist"Int: $i, String: $s, Boolean: $b"
+    typed[Int :: String :: Boolean :: HNil](l)
+
+    val v1 = l.head
+    typed[Int](v1)
+    assertEquals(23, v1)
+
+    val v2 = l.tail.head
+    typed[String](v2)
+    assertEquals("foo", v2)
+
+    val v3 = l.tail.tail.head
+    typed[Boolean](v3)
+    assertEquals(true, v3)
+
+    val v4 = l.tail.tail.tail
+    typed[HNil](v4)
+
+    illTyped("""
+      r.tail.tail.tail.head
+    """)
   }
 }
