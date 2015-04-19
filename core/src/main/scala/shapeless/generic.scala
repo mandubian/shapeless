@@ -386,7 +386,7 @@ trait CaseClassMacros extends ReprTypes {
     val gTpe = tpe.asInstanceOf[global.Type]
     val pre = gTpe.prefix
     val sym = gTpe.typeSymbol
-    println(s"pre:$pre sym:$sym")
+    // println(s"pre:$pre sym:$sym")
     global.gen.mkAttributedRef(pre, sym).asInstanceOf[Tree]
   }
 

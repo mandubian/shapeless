@@ -66,33 +66,6 @@ object IsHCons1 {
   implicit def mkIsHCons1[L[_], FH[_[_]], FT[_[_]], H0[_], T0[_] <: HList]: IsHCons1.Aux[L, FH, FT, H0, T0] = macro IsHCons1Macros.mkIsHCons1Impl[L, FH, FT]
 }
 
-trait IsCCons11[L[_], FH[_[_]], FT[_[_]], H[_], T[_] <: Coproduct] {
-
-  lazy val fh: FH[H] = mkFhh
-  lazy val ft: FT[T] = mkFtt
-
-  def pack[A](u: Either[H[A], T[A]]): L[A]
-  def unpack[A](p: L[A]): Either[H[A], T[A]]
-
-  def mkFhh: FH[H]
-  def mkFtt: FT[T]
-}
-
-object IsCCons11 {
-
-  def apply[L[_], FH[_[_]], FT[_[_]], H[_], T[_] <: Coproduct](implicit tc: IsCCons11[L, FH, FT, H, T]): IsCCons11[L, FH, FT, H, T] = tc
-
-  implicit def mkIsCCons11[L[_], FH[_[_]], FT[_[_]]](implicit tc: IsCCons1[L, FH, FT]): IsCCons11[L, FH, FT, tc.H, tc.T] = new IsCCons11[L, FH, FT, tc.H, tc.T] {
-
-    def pack[A](u: Either[tc.H[A], tc.T[A]]): L[A] = tc.pack(u)
-    def unpack[A](p: L[A]): Either[tc.H[A], tc.T[A]] = tc.unpack(p)
-
-    def mkFhh: FH[tc.H] = tc.mkFhh
-    def mkFtt: FT[tc.T] = tc.mkFtt
-  }
-
-}
-
 trait IsCCons1[L[_], FH[_[_]], FT[_[_]]] {
   type H[_]
   type T[_] <: Coproduct
