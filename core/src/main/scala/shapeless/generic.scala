@@ -250,21 +250,32 @@ trait CaseClassMacros extends ReprTypes {
   def appliedTypTree1(tpe: Type, param: Type, arg: TypeName): Tree = {
     tpe match {
       case t if t =:= param =>
+    // println(s"1 $tpe")
         Ident(arg)
       case PolyType(params, body) if params.head.asType.toType =:= param =>
+    // println(s"2 $tpe")
         appliedTypTree1(body, param, arg)
       case t @ TypeRef(pre, sym, List()) if t.takesTypeArgs =>
+    // println(s"3")
         val argTrees = t.typeParams.map(sym => appliedTypTree1(sym.asType.toType, param, arg))
         AppliedTypeTree(mkAttributedRef(pre, sym), argTrees)
       case TypeRef(pre, sym, List()) =>
+    // println(s"4 $tpe")
         mkAttributedRef(pre, sym)
       case TypeRef(pre, sym, args) =>
+    // println(s"5 $tpe")
         val argTrees = args.map(appliedTypTree1(_, param, arg))
         AppliedTypeTree(mkAttributedRef(pre, sym), argTrees)
       case t if t.takesTypeArgs =>
+    // println(s"6")
         val argTrees = t.typeParams.map(sym => appliedTypTree1(sym.asType.toType, param, arg))
         AppliedTypeTree(mkAttributedRef(tpe.typeConstructor), argTrees)
+      case SingleType(p, v) =>
+        val r = mkAttributedRef(p, v)
+    // println(s"66 $p $v $r")
+        tq"$tpe"
       case t =>
+    // println(s"7 $tpe")
         mkAttributedRef(t)
     }
   }
@@ -375,6 +386,7 @@ trait CaseClassMacros extends ReprTypes {
     val gTpe = tpe.asInstanceOf[global.Type]
     val pre = gTpe.prefix
     val sym = gTpe.typeSymbol
+    println(s"pre:$pre sym:$sym")
     global.gen.mkAttributedRef(pre, sym).asInstanceOf[Tree]
   }
 

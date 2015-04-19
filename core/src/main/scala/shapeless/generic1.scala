@@ -63,7 +63,34 @@ object IsHCons1 {
 
   def apply[L[_], FH[_[_]], FT[_[_]]](implicit tc: IsHCons1[L, FH, FT]): Aux[L, FH, FT, tc.H, tc.T] = tc
 
-  implicit def mkIsHCons1[L[_], FH[_[_]], FT[_[_]]]: IsHCons1[L, FH, FT] = macro IsHCons1Macros.mkIsHCons1Impl[L, FH, FT]
+  implicit def mkIsHCons1[L[_], FH[_[_]], FT[_[_]], H0[_], T0[_] <: HList]: IsHCons1.Aux[L, FH, FT, H0, T0] = macro IsHCons1Macros.mkIsHCons1Impl[L, FH, FT]
+}
+
+trait IsCCons11[L[_], FH[_[_]], FT[_[_]], H[_], T[_] <: Coproduct] {
+
+  lazy val fh: FH[H] = mkFhh
+  lazy val ft: FT[T] = mkFtt
+
+  def pack[A](u: Either[H[A], T[A]]): L[A]
+  def unpack[A](p: L[A]): Either[H[A], T[A]]
+
+  def mkFhh: FH[H]
+  def mkFtt: FT[T]
+}
+
+object IsCCons11 {
+
+  def apply[L[_], FH[_[_]], FT[_[_]], H[_], T[_] <: Coproduct](implicit tc: IsCCons11[L, FH, FT, H, T]): IsCCons11[L, FH, FT, H, T] = tc
+
+  implicit def mkIsCCons11[L[_], FH[_[_]], FT[_[_]]](implicit tc: IsCCons1[L, FH, FT]): IsCCons11[L, FH, FT, tc.H, tc.T] = new IsCCons11[L, FH, FT, tc.H, tc.T] {
+
+    def pack[A](u: Either[tc.H[A], tc.T[A]]): L[A] = tc.pack(u)
+    def unpack[A](p: L[A]): Either[tc.H[A], tc.T[A]] = tc.unpack(p)
+
+    def mkFhh: FH[tc.H] = tc.mkFhh
+    def mkFtt: FT[tc.T] = tc.mkFtt
+  }
+
 }
 
 trait IsCCons1[L[_], FH[_[_]], FT[_[_]]] {
@@ -86,7 +113,9 @@ object IsCCons1 {
   def apply[L[_], FH[_[_]], FT[_[_]]](implicit tc: IsCCons1[L, FH, FT]): Aux[L, FH, FT, tc.H, tc.T] = tc
 
   implicit def mkIsCCons1[L[_], FH[_[_]], FT[_[_]]]: IsCCons1[L, FH, FT] = macro IsCCons1Macros.mkIsCCons1Impl[L, FH, FT]
+
 }
+
 
 class Generic1Macros(val c: whitebox.Context) extends CaseClassMacros {
   import c.universe._
@@ -298,7 +327,7 @@ trait IsCons1Macros extends CaseClassMacros {
     val tlTpt = appliedTypTree1(tlPoly, lParamTpe, nme)
 
     val (pack, unpack) = mkPackUnpack(nme, lTpt, hdTpt, tlTpt)
-    q"""
+    val tree = q"""
       new $isCons1TC[$lTpe, $fhTpt, $ftTpt] {
         type H[$nme] = $hdTpt
         type T[$nme] = $tlTpt
@@ -310,5 +339,10 @@ trait IsCons1Macros extends CaseClassMacros {
         $unpack
       }
     """
+
+    // println(tree)
+
+    tree
   }
 }
+

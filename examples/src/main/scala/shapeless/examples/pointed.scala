@@ -4,6 +4,14 @@ import shapeless._
 import ops.coproduct.IsCCons
 import ops.hlist.IsHCons
 
+import scala.language.existentials
+import scala.language.experimental.macros
+
+import scala.annotation.{ StaticAnnotation, tailrec }
+import scala.reflect.api.Universe
+import scala.reflect.macros.{ blackbox, whitebox }
+
+import ops.{ hlist, coproduct }
 
 trait Pointed[F[_]] { def point[A](a: A): F[A] }
 
@@ -26,150 +34,137 @@ object PointedDemo extends App {
   import PointedDemoDefns._
   import pointedSyntax._
 
-  // type L[A] = A :: HNil
-  // Pointed[L]
+  Pointed[Const[HNil]#λ]
+  Pointed[Const[HNil.type]#λ]
 
-  // type C[A] = A :+: CNil
-  // Pointed[C]
+  type L[A] = A :: HNil
+  Pointed[L]
 
-  // type C2[A] = Id[A] :+: CNil
-  // Pointed[C2]
+  type L2[A] = A :: A :: HNil
+  Pointed[L2]
 
-  // type C3[A] = L[A] :+: CNil
-  // Pointed[C3]
+  type C[A] = A :+: CNil
+  Pointed[C]
 
-  // Pointed[Option]
+  type C2[A] = A :+: A :+: CNil
+  Pointed[C2]
 
-  // Pointed[Tree]
+  type C3[A] = Id[A] :+: CNil
+  Pointed[C3]
 
-  // type C4[A] = Const[INil.type]#λ[A] :: HNil
-  // IsHCons1[C4, Pointed, Pointed]
+  type C4[A] = L[A] :+: CNil
+  Pointed[C4]
 
-  // // FAILS FOR UNKNOWN REASON YET
-  // type C5[A] = A :: Const[INil.type]#λ[A] :: HNil
-  // IsHCons1[C5, Pointed, Pointed]
+  // OPTION
+  Pointed[Const[None.type]#λ]
+  Pointed[Some]
+  Pointed[Option]
+  // works
+  type C5[A] = Const[None.type]#λ[A] :: HNil
+  Pointed[C5]
+  // doesnt work ???
+  // Pointed[({ type λ[A] = Const[None.type]#λ[A] :: Const[HNil]#λ })#λ]
 
-  // type C6[A] = A :: IList[A] :: HNil
-  // IsHCons1[C6, Pointed, Pointed]
 
-  // Pointed[Option]
+  // ILIST
+  Pointed[Const[INil.type]#λ]
+  Pointed[ICons]
 
-  // Pointed[List]
+  Pointed[IList]
 
-  // Pointed[Foo]
 
-  // assert(5.point[Option] == Some(5))
+  // LIST
+  Pointed[Const[collection.immutable.Nil.type]#λ]
+  Pointed[collection.immutable.::]
+  Pointed[List]
+
+  // Tree
+  Pointed[Leaf]
+  Pointed[Node]
+  Pointed[Tree]
+
+  // Foo
+  Pointed[Foo]
+
+  type C6[A] = Tree[A] :: List[A] :: Option[A] :: IList[A] :: Foo[A] :: HNil
+  Pointed[C6]
+
+  type C7[A] = Tree[A] :+: List[A] :+: Option[A] :+: IList[A] :+: Foo[A] :+: CNil
+  Pointed[C7]
+
+
+/** STILL BUGGY
   // assert("toto".point[Tree] == Leaf("toto"))
+  // Pointed[Option]
+  type C10[A] = Const[None.type]#λ[A] :: HNil
+  implicitly[C10[Int] =:= ({ type λ[A] = Const[None.type]#λ[A] :: HNil })#λ[Int]] 
+
+  type T[A] = Some[A] :+: CNil
+  type T2[A] = Const[None.type]#λ[A] :+: Some[A] :+: CNil
+  // OK
+  val r: IsCCons1.Aux[T2, Pointed, Pointed, Const[None.type]#λ, T] = IsCCons1.mkIsCCons1[T2, Pointed, Pointed]
+  // KO
+  implicitly[IsCCons1.Aux[T2, Pointed, Pointed, Const[None.type]#λ, T]]
+
+  // Pointed.cconsLeft[Option]
+
+  // Pointed.cconsRight[T2, Const[None.type]#λ, T, None.type]
+  // println("====>"+5.point[Option])
+  // assert(5.point[Option] == Some(5))
   // assert(true.point[IList] == ICons(true, INil))
   // assert(1.234.point[List] == List(1.234))
 
   // assert("tata".point[Foo] == Foo("tata", Nil))
-
-  Witness[None.type]
-  Pointed[Const[None.type]#λ]
-  Pointed[Some]
-  type C8[A] = Some[A] :: Const[None.type]#λ[A] :: HNil
-  IsHCons1.mkIsHCons1[C8, Pointed, Pointed]
-  Pointed.isHConsConstT[Some, ({type λ[A] = Const[None.type]#λ[A] :: HNil })#λ]
-  // Pointed.hcons[C8]
-  // Pointed[Some]
-  // Pointed[Option]
-
-  // type C7[A] = Id[A] :+: Some[A] :+: Const[None.type]#λ[A] :+: CNil
-  // Pointed.hcons[C7]
-  // Pointed.ccons[C7]
-
-  // type C8[A] = Some[A] :: Const[None.type]#λ[A] :: HNil
-  // Pointed.hcons[C8]
-
-  // IsCCons1.mkIsCCons1[C7, Pointed, Pointed]
-
-  // type H[T] = None.type
-  // lazily[Pointed[H]]
-  // lazily[Pointed[Const[None.type]#λ]]
-  // IsHCons1.mkIsHCons1[C7, Pointed, Pointed]
-  // Pointed.hcons[C7]
-  // IsHCons1.mkIsHCons1[C7, Pointed, Pointed]
-  // Pointed.isHConsConst[None.type]
-  // Pointed.isCConsConst[Some, None.type]
-  // Pointed[Option]
+*/
 }
 
 
 object Pointed extends Pointed0 {
   def apply[F[_]](implicit f: Lazy[Pointed[F]]): Pointed[F] = f.value
 
+  import scala.language.experimental.macros
+
   implicit val idPointed: Pointed[Id] =
     new Pointed[Id] {
       def point[A](a: A): Id[A] = a
     }
 
-  // HACKING the fact that CNil can't be pointed
-  implicit def isHPointedSingle[C](
-    implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]]
-  ): Pointed[({type λ[A] = Const[C]#λ[A] :: HNil })#λ] =
-    new Pointed[({type λ[A] = Const[C]#λ[A] :: HNil })#λ] {
-      def point[A](a: A): Const[C]#λ[A] :: HNil = pc.value.point(a) :: HNil
+
+  // HACKING the fact that Pointed can't be built with all Const (just for singletons)
+  implicit def constSingletonPointed[T](implicit w: Witness.Aux[T]): Pointed[Const[T]#λ] =
+    new Pointed[Const[T]#λ] {
+      def point[A](a: A): T = w.value
     }
 
-  // HACKING the fact that CNil can't be pointed
-  implicit def isCPointedSingle[C](
-    implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]]
-  ): Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] =
-    new Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] {
-      def point[A](a: A): Const[C]#λ[A] :+: CNil = Inl(pc.value.point(a))
+  implicit def isCPointedSingleSingleton[C](
+    implicit w: Witness.Aux[C], pf: Lazy[Pointed[Const[C]#λ]]
+  ): Pointed[({type λ[A] = Const[C]#λ[A] :+: Const[CNil]#λ[A] })#λ] =
+    new Pointed[({type λ[A] = Const[C]#λ[A] :+: Const[CNil]#λ[A] })#λ] {
+      def point[A](a: A): Const[C]#λ[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
     }
 
-  // implicit def isHConsConstH[C](
-  //   implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]], phnil: Lazy[Pointed[Const[HNil]#λ]]
-  // ): IsHCons1[({type λ[A] = Const[C]#λ[A] :: HNil})#λ, Pointed, Pointed] = 
-  //   new IsHCons1[({type λ[A] = Const[C]#λ[A] :: HNil})#λ, Pointed, Pointed] {
-  //     type H[t] = Const[C]#λ[t]
-  //     type T[t] = Const[HNil]#λ[t]
+  implicit def isCPointedSingle[F[_]](
+    implicit pf: Lazy[Pointed[F]]
+  ): Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] =
+    new Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] {
+      def point[A](a: A): F[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
+    }
 
-  //     def pack[A](u: (Const[C]#λ[A], Const[HNil]#λ[A])): ({type λ[A] = Const[C]#λ[A] :: HNil })#λ[A] = u._1 :: u._2
-  //     def unpack[A](p: ({type λ[A] = Const[C]#λ[A] :: HNil })#λ[A]): (Const[C]#λ[A], Const[HNil]#λ[A]) = p.head -> p.tail
 
-  //     def mkFhh: Pointed[Const[C]#λ] = pc.value
-  //     def mkFtt: Pointed[Const[HNil]#λ] = phnil.value
-  //   }
-
-  // implicit def isHConsConstT[F[_], G[_] <: HList](
-  //   implicit pf: Lazy[Pointed[F]], pg: Lazy[Pointed[G]]
-  // ): IsHCons1[({type λ[A] = F[A] :: G[A]})#λ, Pointed, Pointed] = 
-  //   new IsHCons1[({type λ[A] = F[A] :: G[A]})#λ, Pointed, Pointed] {
-  //     type H[t] = F[t]
-  //     type T[t] = ({type λ[A] = G[A]})#λ[t]
-
-  //     def pack[A](u: (F[A], G[A])): ({type λ[A] = F[A] :: G[A]})#λ[A] = u._1 :: u._2
-  //     def unpack[A](p: ({type λ[A] = F[A] :: G[A]})#λ[A]): (F[A], G[A]) = p.head -> p.tail
-
-  //     def mkFhh: Pointed[F] = pf.value
-  //     def mkFtt: Pointed[G] = pg.value
-  //   }
-
-  implicit def generic[F[_]](implicit gen: Generic1[F, Pointed]): Pointed[F] =
+  implicit def cconsRight[F[_], H[_], T[_] <: Coproduct, C](
+    implicit
+      ihc: IsCCons1.Aux[F, Pointed, Pointed, H, T],
+      w: WitnessWith.Aux[H, C]
+  ): Pointed[F] =
     new Pointed[F] {
-      def point[A](a: A): F[A] = gen.from(gen.fr.point(a))
+      def point[A](a: A): F[A] = {
+        ihc.pack(Right(ihc.ft.point(a)))
+      }
     }
+
 }
 
 trait Pointed0 extends Pointed1 {
-  // HACKING the fact that CNil can't be pointed
-  // implicit def isCPointedSingleF[F[_]](
-  //   implicit pf: Lazy[Pointed[F]]
-  // ): Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] =
-  //   new Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] {
-  //       def point[A](a: A): F[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
-  //   }
-
-  // implicit def isHPointedSingleF[F[_]](
-  //   implicit pf: Lazy[Pointed[F]]
-  // ): Pointed[({type λ[A] = F[A] :: Const[HNil]#λ[A] })#λ] =
-  //   new Pointed[({type λ[A] = F[A] :: Const[HNil]#λ[A] })#λ] {
-  //       def point[A](a: A): F[A] :: Const[HNil]#λ[A] = pf.value.point(a) :: HNil
-  //   }
-
 
   implicit def hcons[F[_]](implicit ihc: IsHCons1[F, Pointed, Pointed]): Pointed[F] =
     new Pointed[F] {
@@ -178,11 +173,16 @@ trait Pointed0 extends Pointed1 {
       }
     }
 
-  implicit def ccons[F[_]](implicit ihc: IsCCons1[F, Pointed, Pointed]): Pointed[F] =
+  implicit def cconsLeft[F[_]](implicit ihc: IsCCons1[F, Pointed, Pointed]): Pointed[F] =
     new Pointed[F] {
       def point[A](a: A): F[A] = {
         ihc.pack(Left(ihc.fh.point(a)))
       }
+    }
+
+  implicit def generic[F[_]](implicit gen: Generic1[F, Pointed]): Pointed[F] =
+    new Pointed[F] {
+      def point[A](a: A): F[A] = gen.from(gen.fr.point(a))
     }
 
 }
@@ -190,41 +190,17 @@ trait Pointed0 extends Pointed1 {
 trait Pointed1 {
 
   // HACKING the fact that CNil can't be pointed
-  // implicit def isCPointedSimpleType: Pointed[({type λ[A] = A :+: Const[CNil]#λ[A] })#λ] =
-  //   new Pointed[({type λ[A] = A :+: Const[CNil]#λ[A] })#λ] {
-  //       def point[A](a: A): A :+: Const[CNil]#λ[A] = Inl(a)
-  //   }
-
-  implicit def isHPointedSimpleType[T](implicit w: Witness.Aux[T]): Pointed[({type λ[A] = Const[T]#λ[A] :: HNil })#λ] =
-    new Pointed[({type λ[A] = Const[T]#λ[A] :: HNil })#λ] {
-        def point[A](a: A): Const[T]#λ[A] :: HNil = w.value :: HNil
+  implicit def isCPointedSimpleType: Pointed[({type λ[A] = A :+: Const[CNil]#λ[A] })#λ] =
+    new Pointed[({type λ[A] = A :+: Const[CNil]#λ[A] })#λ] {
+      def point[A](a: A): A :+: Const[CNil]#λ[A] = Inl(a)
     }
+    
 
-  implicit def constHNilPointed: Pointed[Const[HNil]#λ] =
+  implicit val constHNilPointed: Pointed[Const[HNil]#λ] =
     new Pointed[Const[HNil]#λ] {
       def point[A](a: A): HNil = HNil
     }
 
-  // HACKING the fact that Pointed can't be built with all Const (just for singletons)
-  implicit def constSingletonPointed[T](implicit w: Witness.Aux[T]): Pointed[Const[T]#λ] =
-    new Pointed[Const[T]#λ] {
-      def point[A](a: A): T = w.value
-    }
-
-  // implicit def constNilPointed: Pointed[Const[Nil.type]#λ] =
-  //   new Pointed[Const[Nil.type]#λ] {
-  //     def point[A](a: A): Nil.type = Nil
-  //   }
-
-  // implicit def constINilPointed: Pointed[Const[INil.type]#λ] =
-  //   new Pointed[Const[INil.type]#λ] {
-  //     def point[A](a: A): INil.type = INil
-  //   }
-
-  // implicit def constNonePointed: Pointed[Const[None.type]#λ] =
-  //   new Pointed[Const[None.type]#λ] {
-  //     def point[A](a: A): None.type = None
-  //   }
 }
 
 // Pointed syntax
@@ -239,6 +215,55 @@ object pointedSyntax {
 
 
 
+  // implicit def isHConsConstH[C](
+  //   implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]], phnil: Lazy[Pointed[Const[HNil]#λ]]
+  // ): IsHCons1[({type λ[A] = Const[C]#λ[A] :: HNil})#λ, Pointed, Pointed] = 
+  //   new IsHCons1[({type λ[A] = Const[C]#λ[A] :: HNil})#λ, Pointed, Pointed] {
+  //     type H[t] = Const[C]#λ[t]
+  //     type T[t] = Const[HNil]#λ[t]
+
+  //     def pack[A](u: (Const[C]#λ[A], Const[HNil]#λ[A])): ({type λ[A] = Const[C]#λ[A] :: HNil })#λ[A] = u._1 :: u._2
+  //     def unpack[A](p: ({type λ[A] = Const[C]#λ[A] :: HNil })#λ[A]): (Const[C]#λ[A], Const[HNil]#λ[A]) = p.head -> p.tail
+
+  //     def mkFhh: Pointed[Const[C]#λ] = lazily[]pc.value
+  //     def mkFtt: Pointed[Const[HNil]#λ] = phnil.value
+  //   }
+
+  // implicit def isHConsConstH: IsHCons1S[({type λ[A] = Const[None.type]#λ[A] :: HNil})#λ, Pointed, Pointed] = 
+  //   new IsHCons1S[({type λ[A] = Const[None.type]#λ[A] :: HNil})#λ, Pointed, Pointed] {
+  //     type H[t] = Const[None.type]#λ[t]
+  //     type T[t] = Const[HNil]#λ[t]
+
+  //     def pack[A](u: (Const[None.type]#λ[A], Const[HNil]#λ[A])): ({type λ[A] = Const[None.type]#λ[A] :: HNil })#λ[A] = u._1 :: u._2
+  //     def unpack[A](p: ({type λ[A] = Const[None.type]#λ[A] :: HNil })#λ[A]): (Const[None.type]#λ[A], Const[HNil]#λ[A]) = p.head -> p.tail
+
+  //     def mkFhh: Pointed[Const[None.type]#λ] = lazily[Pointed[Const[None.type]#λ]]
+  //     def mkFtt: Pointed[Const[HNil]#λ] = lazily[Pointed[Const[HNil]#λ]]
+  //   }
+
+  // HACKING the fact that CNil can't be pointed
+  /*implicit def isHPointedSingle[C](
+    implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]]
+  ): Pointed[({type λ[A] = Const[C]#λ[A] :: HNil })#λ] =
+    new Pointed[({type λ[A] = Const[C]#λ[A] :: HNil })#λ] {
+      def point[A](a: A): Const[C]#λ[A] :: HNil = pc.value.point(a) :: HNil
+    }*/
+
+  // HACKING the fact that CNil can't be pointed
+  /*implicit def isCPointedSingle[C](
+    implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]]
+  ): Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] =
+    new Pointed[({type λ[A] = Const[C]#λ[A] :+: CNil })#λ] {
+      def point[A](a: A): Const[C]#λ[A] :+: CNil = Inl(pc.value.point(a))
+    }*/
+
+  // HACKING the fact that CNil can't be pointed
+  // implicit def isCPointedSingleF[F[_]](
+  //   implicit pf: Lazy[Pointed[F]]
+  // ): Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] =
+  //   new Pointed[({type λ[A] = F[A] :+: Const[CNil]#λ[A] })#λ] {
+  //     def point[A](a: A): F[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
+  //   }
 
   // implicit def isHConsConst[C](
   //   implicit w: Witness.Aux[C], pc: Lazy[Pointed[Const[C]#λ]], phnil: Lazy[Pointed[Const[HNil]#λ]]
