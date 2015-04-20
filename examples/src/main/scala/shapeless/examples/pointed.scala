@@ -150,18 +150,6 @@ object Pointed extends Pointed0 {
       def point[A](a: A): F[A] :+: Const[CNil]#λ[A] = Inl(pf.value.point(a))
     }
 
-
-  implicit def cconsRight[F[_], H[_], T[_] <: Coproduct, C](
-    implicit
-      ihc: IsCCons1.Aux[F, Pointed, Pointed, H, T],
-      w: WitnessWith.Aux[H, C]
-  ): Pointed[F] =
-    new Pointed[F] {
-      def point[A](a: A): F[A] = {
-        ihc.pack(Right(ihc.ft.point(a)))
-      }
-    }
-
 }
 
 trait Pointed0 extends Pointed1 {
@@ -173,7 +161,7 @@ trait Pointed0 extends Pointed1 {
       }
     }
 
-  implicit def cconsLeft[F[_]](implicit ihc: IsCCons1[F, Pointed, Pointed]): Pointed[F] =
+  implicit def ccons[F[_]](implicit ihc: IsCCons1[F, Pointed, Pointed]): Pointed[F] =
     new Pointed[F] {
       def point[A](a: A): F[A] = {
         ihc.pack(Left(ihc.fh.point(a)))
