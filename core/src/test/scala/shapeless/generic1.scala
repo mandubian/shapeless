@@ -377,6 +377,18 @@ class Generic1Tests {
     IsHCons1[R0, Pointed, Pointed]
 
     Pointed[Option]
+    Pointed[List]
+
+    type R1[T] = List[T] :: Option[T] :: HNil
+    Pointed[R1]
+
+    Pointed[IList]
+    assertEquals(Pointed[Tree].point(5), Leaf(5))
+    Pointed[Prod]
+
+    type R2[T] = List[Option[T]]
+    Pointed[R2]
+
   }
 }
 
